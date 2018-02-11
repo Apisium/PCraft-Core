@@ -3,8 +3,10 @@ package cn.apisium.pcraft.core
 import com.eclipsesource.v8.*
 import io.alicorn.v8.V8JavaAdapter
 import java.io.File
+import java.nio.file.CopyOption
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 import java.util.Arrays
 
 class PCraft {
@@ -124,9 +126,11 @@ class PCraft {
 
   private fun write (name: String, check: Boolean = true): PCraft {
     val pkg = Paths.get(System.getProperty("user.dir"), name)
-    if (!check || !pkg.toFile().isFile) {
-      Files.copy(this.javaClass.getResourceAsStream(name), pkg)
-    }
+    if (check) {
+      if (!pkg.toFile().isFile) {
+        Files.copy(this.javaClass.getResourceAsStream(name), pkg)
+      }
+    } else Files.copy(this.javaClass.getResourceAsStream(name), pkg, StandardCopyOption.REPLACE_EXISTING)
     return this
   }
 }
