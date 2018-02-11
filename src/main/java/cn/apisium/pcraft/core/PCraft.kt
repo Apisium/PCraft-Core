@@ -34,9 +34,9 @@ class PCraft {
   fun init (server: Any, type: String, eventManager: EventManager,
     commandManager: CommandManager, helpers: V8Object?) {
     val config = this
-      .write(".npmrc")
-      .write("package.json")
-      .write("pcraft-setup.js", false)
+      .write("/.npmrc")
+      .write("/package.json")
+      .write("/pcraft-setup.js", false)
       .checkModules()
       .getPackage()
 
