@@ -8,12 +8,22 @@ import java.nio.file.Paths
 import java.util.Arrays
 
 class PCraft {
-  private val node = NodeJS.createNodeJS()
-  private val v8 = node.runtime
+  val node = NodeJS.createNodeJS()
+  val v8 = node.runtime
+
   private val root = System.getProperty("user.dir")
   private var app: V8Object? = null
   private var eventManager: EventManager? = null
   private var commandManager: CommandManager? = null
+
+  fun inject (obj: Any): V8Object {
+    val proxy = ProxyObject(obj)
+    val name = "__object_" + proxy.hashCode()
+    V8JavaAdapter.injectObject(name, proxy, v8)
+    val obj2 = v8.getObject(name)
+    v8.addUndefined(name)
+    return obj2
+  }
 
   fun release () {
     eventManager?.unregisterAll()
@@ -22,8 +32,8 @@ class PCraft {
     app?.release()
   }
 
-  fun init (server: Any, helpers: V8Object, type: String,
-    eventManager: EventManager, commandManager: CommandManager) {
+  fun init (server: Any, type: String, eventManager: EventManager,
+    commandManager: CommandManager, helpers: V8Object?) {
     val config = this
       .write(".npmrc")
       .write("package.json")
@@ -33,17 +43,10 @@ class PCraft {
 
     eventManager.setEmitter {
       val args = V8Array(v8)
+      val obj = inject(it)
 
-      val obj = ProxyObject(it)
-      val name = "__object_" + obj.hashCode()
-      V8JavaAdapter.injectObject(name, obj, v8)
-      val o = v8.getObject(name)
-
-      args.push(o)
-      v8.addUndefined(name)
-
-      app?.executeVoidFunction("emit", args)
-      o.release()
+      app?.executeVoidFunction("emit", args.push(obj))
+      obj.release()
       args.release()
 
       while (node.isRunning) node.handleMessage()
@@ -52,61 +55,46 @@ class PCraft {
     val obj = V8Object(v8)
     val args = V8Array(v8)
 
-    val serverObj = ProxyObject(server)
-    val objName = "__object_" + serverObj.hashCode()
-    V8JavaAdapter.injectObject(objName, serverObj, v8)
-    val obj2 = v8.getObject(objName)
-    v8.addUndefined(objName)
+    val serverObj = inject(server)
     args.push(obj
       .add("type", type)
       .add("pkg", config)
       .add("helpers", helpers)
-      .add("server", obj2)
+      .add("server", serverObj)
       .registerJavaMethod(fun (_, args) {
-        for (name in args.getStrings(0, args.length())) {
-          try {
-            eventManager.register(name)
-          } catch (e: Exception) {
-            e.printStackTrace()
-          }
-        }
+        args.getStrings(0, args.length()).forEach { eventManager.register(it) }
       }, "registerEvent")
       .registerJavaMethod(fun (_, args) {
-        try {
-          val arr = args.getArray(3)
-          val fn = args.get(0) as V8Function
-          val isNull = args.getType(2) == V8Value.UNDEFINED
-          commandManager.register(
-            fun (sender, args, curAlias) {
-              val arg = V8Array(v8)
+        args.getStrings(0, args.length()).forEach { eventManager.unregister(it) }
+      }, "unregisterEvent")
+      .registerJavaMethod(fun (_, args) {
+        val arr = args.getArray(3)
+        val fn = args.get(0) as V8Function
+        val isNull = args.getType(2) == V8Value.UNDEFINED
+        commandManager.register(
+          fun (sender, args, curAlias) {
+            val arg = V8Array(v8)
+            val obj3 = inject(sender)
 
-              val obj3 = ProxyObject(sender)
-              val id = "__object_" + obj3.hashCode()
-              V8JavaAdapter.injectObject(id, obj3, v8)
-              val o = v8.getObject(id)
+            fn.call(null, arg.push(obj3).push(args).push(curAlias))
+            obj3.release()
+            arg.release()
 
-              arg.push(o).push(args).push(curAlias)
-              v8.addUndefined(id)
-
-              fn.call(null, arg)
-              o.release()
-              arg.release()
-
-              while (node.isRunning) node.handleMessage()
-            },
-            args.getString(1),
-            if (args.getType(2) == V8Value.STRING) args.getString(2) else null,
-            if (isNull) null else arr.getStrings(0, arr.length())
-          )
-          if (! isNull) arr.release()
-        } catch (e: Exception) {
-          e.printStackTrace()
-        }
+            while (node.isRunning) node.handleMessage()
+          },
+          args.getString(1),
+          if (args.getType(2) == V8Value.STRING) args.getString(2) else null,
+          if (isNull) null else arr.getStrings(0, arr.length())
+        )
+        if (!isNull) arr.release()
       }, "registerCommand")
+      .registerJavaMethod(fun (_, args) {
+        args.getStrings(0, args.length()).forEach { commandManager.unregister(it) }
+      }, "unregisterCommand")
     )
 
-    helpers.release()
-    obj2.release()
+    helpers?.release()
+    serverObj.release()
 
     val app = (node
       .require(File(root, "pcraft-setup.js")) as V8Function)
@@ -120,9 +108,8 @@ class PCraft {
     this.commandManager = commandManager
     this.app = app
 
-    while (node.isRunning) node.handleMessage();
+    while (node.isRunning) node.handleMessage()
   }
-
 
   private fun getPackage (): String {
     return String(Files.readAllBytes(Paths.get(root, "package.json")))
