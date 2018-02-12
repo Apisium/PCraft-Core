@@ -19,7 +19,8 @@ class PCraft {
   private var commandManager: CommandManager? = null
 
   fun inject (obj: Any): V8Object {
-    val name = "__object_" + obj.hashCode()
+    val code = obj.hashCode()
+    val name = "__object_" + if (code < 0) "_" + (-code) else code
     V8JavaAdapter.injectObject(name, obj, v8)
     val obj2 = v8.getObject(name)
     v8.addUndefined(name)
