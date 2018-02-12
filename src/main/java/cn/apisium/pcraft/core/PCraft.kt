@@ -28,7 +28,6 @@ class PCraft {
   }
 
   fun release () {
-    eventManager?.unregisterAll()
     commandManager?.unregisterAll()
     app?.executeVoidFunction("disable", null)
     app?.release()
@@ -66,9 +65,6 @@ class PCraft {
       .registerJavaMethod(fun (_, args) {
         args.getStrings(0, args.length()).forEach { eventManager.register(it) }
       }, "registerEvent")
-      .registerJavaMethod(fun (_, args) {
-        args.getStrings(0, args.length()).forEach { eventManager.unregister(it) }
-      }, "unregisterEvent")
       .registerJavaMethod(fun (_, args) {
         val arr = args.getArray(3)
         val fn = args.get(0) as V8Function

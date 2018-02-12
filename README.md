@@ -5,7 +5,9 @@ The Java core of PCraft (A plugins system of Minecraft).
 ## Projects
 
 [PCraft](https://github.com/Apisium/PCraft): The JavaScript core of PCraft.
+
 [PCraft-Bukkit](https://github.com/Apisium/PCraft-Bukkit): The Bukkit plugin of PCraft.
+
 [PCraft-Nukkit](https://github.com/Apisium/PCraft-Nukkit): The Nukkit plugin of PCraft.
 
 ## Usage
