@@ -5,14 +5,14 @@ import java.lang.ref.WeakReference
 import java.lang.reflect.Method
 import java.util.*
 
-class Inject (private val v8: V8, private val filter: (name: String) -> Boolean = { _ -> true }) {
+open class Injector(private val v8: V8, private val filter: (name: String) -> Boolean = { _ -> true }) {
   private val list = arrayOf("wait", "notify", "notifyAll", "equals", "getClass", "hashCode", "getHandles",
     "getHandleList", "getRegisteredListeners")
   private val objects = HashMap<Int, WeakReference<Any>>()
   private val define: V8Function
 
   init {
-    val callback = V8Function (v8, fun (_, _args): Any? {
+    val callback = V8Function(v8, fun(_, _args): Any? {
       val hash = _args.getInteger(0)
       val oo = objects[hash]
       val obj = oo?.get()
@@ -29,7 +29,7 @@ class Inject (private val v8: V8, private val filter: (name: String) -> Boolean 
         if (method.returnType.isPrimitive) result else translate(result)
       }
     })
-    val createObject = V8Function(v8, fun (_, args): Any? {
+    val createObject = V8Function(v8, fun(_, args): Any? {
       val name = args.getString(0)
       return if (name == null || !filter(name)) null
       else try {
@@ -83,11 +83,13 @@ class Inject (private val v8: V8, private val filter: (name: String) -> Boolean 
     createObject.release()
     args.release()
   }
-  fun inject (target: V8Object, obj: Any, name: String): Inject {
+
+  fun inject(target: V8Object, obj: Any, name: String): Injector {
     target.add(name, translate(obj))
     return this
   }
-  fun translate (obj: Any): V8Object {
+
+  fun translate(obj: Any): V8Object {
     val code = obj.hashCode()
     val javaObj = objects[code]
     if (javaObj?.get() == null) objects[code] = WeakReference(obj)
@@ -95,7 +97,7 @@ class Inject (private val v8: V8, private val filter: (name: String) -> Boolean 
     val o = V8Object(v8)
     val methods = clazz.methods.filter { !list.contains(it.name) && !it.isAnnotationPresent(Deprecated::class.java) }
     val sets = ArrayList<Method>()
-    methods.filter(fun (it): Boolean {
+    methods.filter(fun(it): Boolean {
       if (it.parameterCount == 0) {
         val fnName = it.name
         val preIs = fnName.length > 2 && fnName.startsWith("is")
@@ -108,8 +110,9 @@ class Inject (private val v8: V8, private val filter: (name: String) -> Boolean 
               prop.add("set", setter)
               sets.add(setterFn)
             }
-          } catch (ignored: Exception) { }
-          o.add(if (preIs) fnName else fnName[3] .toLowerCase() + fnName.substring(4), prop)
+          } catch (ignored: Exception) {
+          }
+          o.add(if (preIs) fnName else fnName[3].toLowerCase() + fnName.substring(4), prop)
           return false
         }
       }
@@ -128,12 +131,14 @@ class Inject (private val v8: V8, private val filter: (name: String) -> Boolean 
     args.release()
     return result
   }
-  private fun getArgs (args: V8Array): Array<Any> = Array(args.length(), { i ->
+
+  private fun getArgs(args: V8Array): Array<Any> = Array(args.length(), { i ->
     val arg = args.get(i)
     if (arg.javaClass.isPrimitive || (arg.javaClass.getField("TYPE").get(null) as Class<*>).isPrimitive)
       arg else translate(objects[(arg as V8Object).getInteger("javaHashCode")]!!.get()!!)
   })
-  private fun getTypes (args: Array<*>): Array<Class<*>> = args.map {
+
+  private fun getTypes(args: Array<*>): Array<Class<*>> = args.map {
     val cls = it!!::class.java
     if (cls.isPrimitive) cls else {
       val c = (cls.getField("TYPE").get(null) as Class<*>)

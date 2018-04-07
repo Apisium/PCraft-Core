@@ -1,1 +1,3 @@
-rootProject.name = 'PCraft-Core'
+rootProject.name = 'PCraft'
+
+include ':core', ':bukkit'

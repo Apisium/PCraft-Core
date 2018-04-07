@@ -1,40 +1,32 @@
 package cn.apisium.pcraft.core
 
 import com.eclipsesource.v8.*
-import io.alicorn.v8.V8JavaAdapter
 import java.io.File
-import java.nio.file.CopyOption
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
-import java.util.Arrays
 
-class PCraft {
+class PCraft(filter: ((name: String) -> Boolean) = { _ -> true }) {
   val node = NodeJS.createNodeJS()
   val v8 = node.runtime
+  private val injector = Injector(v8, filter)
 
   private val root = System.getProperty("user.dir")
   private var app: V8Object? = null
   private var eventManager: EventManager? = null
   private var commandManager: CommandManager? = null
 
-  fun inject (obj: Any): V8Object {
-    val code = obj.hashCode()
-    val name = "__object_" + if (code < 0) "_" + (-code) else code
-    V8JavaAdapter.injectObject(name, obj, v8)
-    val obj2 = v8.getObject(name)
-    v8.addUndefined(name)
-    return obj2
-  }
+  fun inject(target: V8Object, obj: Any, name: String) = injector.inject(target, obj, name)
+  fun translate(obj: Any) = injector.translate(obj)
 
-  fun release () {
+  fun release() {
     commandManager?.unregisterAll()
     app?.executeVoidFunction("disable", null)
     app?.release()
   }
 
-  fun init (server: Any, type: String, eventManager: EventManager,
-    commandManager: CommandManager, helpers: V8Object?) {
+  fun init(server: Any, type: String, eventManager: EventManager,
+           commandManager: CommandManager, helpers: V8Object?) {
     val config = this
       .write("/.npmrc")
       .write("/package.json")
@@ -44,7 +36,7 @@ class PCraft {
 
     eventManager.setEmitter {
       val args = V8Array(v8)
-      val obj = inject(it)
+      val obj = translate(it)
 
       app?.executeVoidFunction("emit", args.push(obj))
       obj.release()
@@ -53,26 +45,24 @@ class PCraft {
       while (node.isRunning) node.handleMessage()
     }
 
-    val obj = V8Object(v8)
+    val serverObj = translate(server)
     val args = V8Array(v8)
-
-    val serverObj = inject(server)
-    args.push(obj
-      .add("type", type)
-      .add("pkg", config)
-      .add("helpers", helpers)
-      .add("server", serverObj)
-      .registerJavaMethod(fun (_, args) {
+    val obj = V8Object(v8).apply {
+      add("type", type)
+      add("pkg", config)
+      add("helpers", helpers)
+      add("server", serverObj)
+      registerJavaMethod(fun(_, args) {
         args.getStrings(0, args.length()).forEach { eventManager.register(it) }
       }, "registerEvent")
-      .registerJavaMethod(fun (_, args) {
+      registerJavaMethod(fun(_, args) {
         val arr = args.getArray(3)
         val fn = args.get(0) as V8Function
         val isNull = args.getType(2) == V8Value.UNDEFINED
         commandManager.register(
-          fun (sender, args, curAlias) {
+          fun(sender, args, curAlias) {
             val arg = V8Array(v8)
-            val obj3 = inject(sender)
+            val obj3 = translate(sender)
 
             fn.call(null, arg.push(obj3).push(args).push(curAlias))
             obj3.release()
@@ -86,10 +76,12 @@ class PCraft {
         )
         if (!isNull) arr.release()
       }, "registerCommand")
-      .registerJavaMethod(fun (_, args) {
+      registerJavaMethod(fun(_, args) {
         args.getStrings(0, args.length()).forEach { commandManager.unregister(it) }
       }, "unregisterCommand")
-    )
+    }
+
+    args.push(obj)
 
     helpers?.release()
     serverObj.release()
@@ -109,19 +101,19 @@ class PCraft {
     while (node.isRunning) node.handleMessage()
   }
 
-  private fun getPackage (): String {
+  private fun getPackage(): String {
     return String(Files.readAllBytes(Paths.get(root, "package.json")))
   }
 
-  private fun checkModules (): PCraft {
+  private fun checkModules(): PCraft {
     if (!File(root, "node_modules/babel-polyfill")
-      .isDirectory && !install()) {
+        .isDirectory && !install()) {
       print("Cannot to install all modules!")
     }
     return this
   }
 
-  private fun write (name: String, check: Boolean = true): PCraft {
+  private fun write(name: String, check: Boolean = true): PCraft {
     val pkg = Paths.get(System.getProperty("user.dir"), name)
     if (check) {
       if (!pkg.toFile().isFile) {

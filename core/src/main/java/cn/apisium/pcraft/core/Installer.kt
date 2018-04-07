@@ -3,7 +3,7 @@ package cn.apisium.pcraft.core
 import java.io.InputStreamReader
 import java.io.BufferedReader
 
-fun install (): Boolean {
+fun install(): Boolean {
   try {
     val p = try {
       val pb = ProcessBuilder("npm", "install", "--production")

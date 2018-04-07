@@ -1,26 +1,31 @@
-group 'cn.apisium.pcraft'
-version '1.0-SNAPSHOT'
+group = project.property('group')
+version = project.property('version')
 
-buildscript {
-  ext.kotlin_version = '1.2.21'
-
+subprojects {
+  apply plugin: 'idea'
+  apply plugin: 'java'
+  apply plugin: 'kotlin'
   repositories {
     mavenLocal()
     mavenCentral()
+    jcenter()
+    maven { url = 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/' }
+    maven { url = 'https://oss.sonatype.org/content/repositories/snapshots' }
   }
   dependencies {
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib-jre8', version : kotlin_version
+  }
+}
+buildscript {
+  ext.kotlin_version = '1.2.30'
+  repositories {
+    mavenLocal()
+    mavenCentral()
+    jcenter()
+  }
+  dependencies {
+    classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.1'
     classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
   }
 }
 
-apply plugin: 'kotlin'
-
-repositories {
-  mavenCentral()
-}
-
-dependencies {
-  compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib-jre8', version :kotlin_version
-  compile group: 'com.eclipsesource.j2v8', name: 'j2v8_win32_x86_64', version: '4.6.0'
-  compile group: 'io.alicorn.v8', name: 'v8-adapter', version: '1.41'
-}

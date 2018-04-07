@@ -1,0 +1,6 @@
+name: @name@
+main: @main@
+version: @version@-@apiversion@
+website: @website@
+author: @author@
+description: @description@
