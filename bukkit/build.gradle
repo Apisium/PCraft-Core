@@ -1,7 +1,5 @@
 import org.apache.tools.ant.filters.ReplaceTokens
 
-apply plugin: 'com.github.johnrengelman.shadow'
-
 dependencies {
   compileOnly group: 'com.eclipsesource.j2v8', name: 'j2v8_win32_x86_64', version: '4.6.0'
   compileOnly group: 'org.spigotmc', name: 'spigot-api', version: project.property('apiversion')
@@ -20,7 +18,7 @@ processResources {
   ]
 }
 
-task copyPluginToTestserver (type: Copy, dependsOn: ['shadowJar']) {
+task copyPlugin (type: Copy, dependsOn: ['clean', 'shadowJar']) {
   from "$buildDir/libs"
-  into 'testserver/plugins'
+  into '../testserver/plugins'
 }

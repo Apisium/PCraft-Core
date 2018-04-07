@@ -21,6 +21,8 @@
   },
   "dependencies": {
     "babel-polyfill": "*",
+    "buffer-fill": "*",
+    "buffer-from": "*",
     "pcraft": "*",
     "source-map-support": "*"
   }

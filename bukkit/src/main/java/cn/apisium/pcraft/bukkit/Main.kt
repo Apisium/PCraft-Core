@@ -50,6 +50,7 @@ class Main: JavaPlugin() {
       this.isEnabled = false
       return
     }
+    getDefines()
 
     this.logger.info("Loaded successful!")
   }

@@ -1,4 +1,4 @@
-package cn.apisium.pcraft.core;
+package cn.apisium.pcraft.bukkit;
 
 import java.io.File;
 import java.io.IOException;
@@ -11,31 +11,10 @@ import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-/**
- * @author jiangzeyin
- * @date 2016-9-9
- */
 public class PackageUtil {
-
-    /**
-     * 获取某包下（包括该包的所有子包）所有类
-     *
-     * @param packageName 包名
-     * @return 类的完整名称
-     * @throws UnsupportedEncodingException
-     */
     public static List<String> getClassName(String packageName) throws IOException {
         return getClassName(packageName, true);
     }
-
-    /**
-     * 获取某包下所有类
-     *
-     * @param packageName  包名
-     * @param childPackage 是否遍历子包
-     * @return 类的完整名称
-     * @throws UnsupportedEncodingException
-     */
     public static List<String> getClassName(String packageName, boolean childPackage) throws IOException {
         List<String> fileNames = new ArrayList<>();
         ClassLoader loader = Thread.currentThread().getContextClassLoader();
@@ -55,16 +34,6 @@ public class PackageUtil {
         fileNames.addAll(getClassNameByJars(((URLClassLoader) loader).getURLs(), packagePath, childPackage));
         return fileNames;
     }
-
-    /**
-     * 从项目文件获取某包下所有类
-     *
-     * @param filePath     文件路径
-     *                     类名集合
-     * @param childPackage 是否遍历子包
-     * @return 类的完整名称
-     * @throws UnsupportedEncodingException
-     */
     private static List<String> getClassNameByFile(String filePath, boolean childPackage) throws UnsupportedEncodingException {
         List<String> myClassName = new ArrayList<>();
         File file = new File(filePath);
@@ -87,15 +56,6 @@ public class PackageUtil {
         }
         return myClassName;
     }
-
-    /**
-     * 从jar获取某包下所有类
-     *
-     * @param jarPath      jar文件路径
-     * @param childPackage 是否遍历子包
-     * @return 类的完整名称
-     * @throws UnsupportedEncodingException
-     */
     private static List<String> getClassNameByJar(String jarPath, boolean childPackage) throws UnsupportedEncodingException {
         List<String> myClassName = new ArrayList<String>();
         String[] jarInfo = jarPath.split("!");
@@ -128,28 +88,16 @@ public class PackageUtil {
                     }
                 }
             }
-        } catch (Exception e) {
-            //SystemLog.Log(LogType.systemInfo, e.getMessage(), e);
+        } catch (Exception ignored) {
         }
         return myClassName;
     }
-
-    /**
-     * 从所有jar中搜索该包，并获取该包下所有类
-     *
-     * @param urls         URL集合
-     * @param packagePath  包路径
-     * @param childPackage 是否遍历子包
-     * @return 类的完整名称
-     * @throws UnsupportedEncodingException
-     */
     private static List<String> getClassNameByJars(URL[] urls, String packagePath, boolean childPackage) throws UnsupportedEncodingException {
         List<String> myClassName = new ArrayList<String>();
         if (urls != null) {
             for (int i = 0; i < urls.length; i++) {
                 URL url = urls[i];
                 String urlPath = url.getPath();
-                // 不必搜索class文件夹
                 if (urlPath.endsWith("classes/")) {
                     continue;
                 }
